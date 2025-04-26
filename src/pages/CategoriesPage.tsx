@@ -1,5 +1,5 @@
-// src/pages/CategoriesPage.tsx
 import React, { useState } from 'react';
+import styles from './CategoriesPage.module.css';
 
 type Category = {
   name: string;
@@ -20,10 +20,10 @@ const CategoriesPage = () => {
   };
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div className={styles.container}>
       <h2>Categories</h2>
       {categories.map((cat, idx) => (
-        <div key={idx} style={{ marginBottom: '1rem' }}>
+        <div key={idx} className={styles.categoryItem}>
           <strong>{cat.name}</strong>
           <input
             type="number"
@@ -31,7 +31,7 @@ const CategoriesPage = () => {
             min={0}
             max={10}
             onChange={e => updatePriority(idx, parseInt(e.target.value) || 0)}
-            style={{ marginLeft: '1rem', width: '60px' }}
+            className={styles.priorityInput}
           />
         </div>
       ))}
@@ -40,4 +40,3 @@ const CategoriesPage = () => {
 };
 
 export default CategoriesPage;
-

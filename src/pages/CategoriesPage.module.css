@@ -1,0 +1,15 @@
+.container {
+    padding: 2rem;
+  }
+  
+  .categoryItem {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  .priorityInput {
+    margin-left: 1rem;
+    width: 60px;
+    padding: 0.25rem;
+  }

@@ -1,5 +1,5 @@
-// src/pages/TaskInputPage.tsx
 import React, { useState } from 'react';
+import styles from './TaskInputPage.module.css';
 
 interface Task {
   name: string;
@@ -29,7 +29,7 @@ const TaskInputPage = () => {
     const { name, value } = e.target;
     const isCheckbox = e.target instanceof HTMLInputElement && e.target.type === 'checkbox';
     const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
-  
+
     setTask({
       ...task,
       [name]: isCheckbox ? checked : value,
@@ -55,39 +55,41 @@ const TaskInputPage = () => {
   };
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div className={styles.container}>
       <h2>Task Input</h2>
-      <input name="name" value={task.name} onChange={handleChange} placeholder="Task Name" />
-      <input name="startTime" value={task.startTime} onChange={handleChange} placeholder="Start Time" />
-      <input name="endTime" value={task.endTime} onChange={handleChange} placeholder="End Time" />
-      <input name="duration" value={task.duration} onChange={handleChange} placeholder="Duration" />
-      <input name="location" value={task.location} onChange={handleChange} placeholder="Location" />
-      <select name="category" value={task.category} onChange={handleChange}>
-        <option value="Work">Work</option>
-        <option value="Chores">Chores</option>
-        <option value="Relaxation">Relaxation</option>
-      </select>
-      <input
-        type="number"
-        name="priority"
-        value={task.priority}
-        min={1}
-        max={10}
-        onChange={handleChange}
-        placeholder="Priority"
-      />
-      <label>
-        Mandatory?
+      <div className={styles.inputGroup}>
+        <input name="name" value={task.name} onChange={handleChange} placeholder="Task Name" />
+        <input name="startTime" value={task.startTime} onChange={handleChange} placeholder="Start Time" />
+        <input name="endTime" value={task.endTime} onChange={handleChange} placeholder="End Time" />
+        <input name="duration" value={task.duration} onChange={handleChange} placeholder="Duration" />
+        <input name="location" value={task.location} onChange={handleChange} placeholder="Location" />
+        <select name="category" value={task.category} onChange={handleChange}>
+          <option value="Work">Work</option>
+          <option value="Chores">Chores</option>
+          <option value="Relaxation">Relaxation</option>
+        </select>
         <input
-          type="checkbox"
-          name="mandatory"
-          checked={task.mandatory}
+          type="number"
+          name="priority"
+          value={task.priority}
+          min={1}
+          max={10}
           onChange={handleChange}
+          placeholder="Priority"
         />
-      </label>
-      <button onClick={addTask}>Add Task</button>
+        <label>
+          Mandatory?
+          <input
+            type="checkbox"
+            name="mandatory"
+            checked={task.mandatory}
+            onChange={handleChange}
+          />
+        </label>
+        <button onClick={addTask}>Add Task</button>
+      </div>
 
-      <table style={{ marginTop: '1rem', width: '100%', borderCollapse: 'collapse' }}>
+      <table className={styles.taskTable}>
         <thead>
           <tr>
             <th>Name</th><th>Time</th><th>Mandatory</th><th>Priority</th><th>Remove</th>
@@ -106,7 +108,7 @@ const TaskInputPage = () => {
         </tbody>
       </table>
 
-      <button style={{ marginTop: '1rem' }}>Go to Generated Schedule</button>
+      <button className={styles.generateButton}>Go to Generated Schedule</button>
     </div>
   );
 };

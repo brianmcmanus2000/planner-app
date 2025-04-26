@@ -1,10 +1,11 @@
-// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import CategoriesPage from './pages/CategoriesPage';
 import TaskInputPage from './pages/TaskInputPage';
 import SchedulePage from './pages/SchedulePage';
 import NavBar from './components/NavBar';
+
+import './App.css';
 
 function App() {
   return (
@@ -20,4 +21,3 @@ function App() {
 }
 
 export default App;
-
