@@ -10,8 +10,6 @@ interface Task {
   startTime: Dayjs | null;
   endTime: Dayjs | null;
   location: string;
-  category: string;
-  mandatory: boolean;
   priority: number;
 }
 
@@ -22,8 +20,6 @@ const TaskInputPage = () => {
     startTime: null,
     endTime: null,
     location: '',
-    category: 'Work',
-    mandatory: false,
     priority: 1,
   });
   const [taskList, setTaskList] = useState<Task[]>([]);
@@ -40,17 +36,45 @@ const TaskInputPage = () => {
   };
 
   const addTask = () => {
-    setTaskList([...taskList, task]);
+    if (!task.name.trim()) {
+      alert('Task name is required.');
+      return;
+    }
+    if (!task.startTime) {
+      alert('Start time is required.');
+      return;
+    }
+    if (!task.endTime) {
+      alert('End time is required.');
+      return;
+    }
+    if (task.endTime.isBefore(task.startTime)) {
+      alert('End time must be after start time.');
+      return;
+    }
+  
+    const updatedList = [...taskList, task];
+  
+    // ✅ Sort tasks by startTime ascending
+    updatedList.sort((a, b) => {
+      if (a.startTime && b.startTime) {
+        return a.startTime.isBefore(b.startTime) ? -1 : 1;
+      }
+      return 0;
+    });
+  
+    setTaskList(updatedList);
+  
     setTask({
       name: '',
-      startTime: null,  // ✅ null, not ''
-      endTime: null,    // ✅ null, not ''
+      startTime: null,
+      endTime: null,
       location: '',
-      category: 'Work',
-      mandatory: false,
       priority: 1,
     });
   };
+  
+  
 
   const removeTask = (index: number) => {
     setTaskList(taskList.filter((_, i) => i !== index));
@@ -74,11 +98,6 @@ const TaskInputPage = () => {
           />
         </LocalizationProvider>
         <input name="location" value={task.location} onChange={handleChange} placeholder="Location" />
-        <select name="category" value={task.category} onChange={handleChange}>
-          <option value="Work">Work</option>
-          <option value="Chores">Chores</option>
-          <option value="Relaxation">Relaxation</option>
-        </select>
         <input
           type="number"
           name="priority"
@@ -88,31 +107,16 @@ const TaskInputPage = () => {
           onChange={handleChange}
           placeholder="Priority"
         />
-        <label>
-          Mandatory?
-          <input
-            type="checkbox"
-            name="mandatory"
-            checked={task.mandatory}
-            onChange={handleChange}
-          />
-        </label>
         <button onClick={addTask}>Add Task</button>
       </div>
 
       <table className={styles.taskTable}>
-        <thead>
-          <tr>
-            <th>Name</th><th>Time</th><th>Location</th><th>Mandatory</th><th>Priority</th><th>Remove</th>
-          </tr>
-        </thead>
         <tbody>
           {taskList.map((t, idx) => (
             <tr key={idx}>
               <td>{t.name}</td>
               <td>{t.startTime ? t.startTime.format('hh:mm A') : ''} - {t.endTime ? t.endTime.format('hh:mm A') : ''}</td> 
               <td>{t.location}</td>
-              <td>{t.mandatory ? 'Yes' : 'No'}</td>
               <td>{t.priority}</td>
               <td><button onClick={() => removeTask(idx)}>❌</button></td>
             </tr>
