@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
+import dayjs from 'dayjs'; // Add this at the top
+import { useNavigate } from 'react-router-dom';
 import styles from './TaskInputPage.module.css';
 import DayTimeline from '../components/DayTimeline';
 
@@ -14,7 +16,6 @@ interface Task {
   priority: number;
 }
 
-
 const TaskInputPage = () => {
   const [task, setTask] = useState<Task>({
     name: '',
@@ -23,7 +24,19 @@ const TaskInputPage = () => {
     location: '',
     priority: 1,
   });
-  const [taskList, setTaskList] = useState<Task[]>([]);
+  const [taskList, setTaskList] = useState<Task[]>(() => {
+    const savedTasks = localStorage.getItem('taskList');
+    if (savedTasks) {
+      const parsedTasks = JSON.parse(savedTasks);
+      return parsedTasks.map((task: any) => ({
+        ...task,
+        startTime: task.startTime ? dayjs(task.startTime) : null,
+        endTime: task.endTime ? dayjs(task.endTime) : null,
+      }));
+    }
+    return [];
+  });
+  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -75,12 +88,28 @@ const TaskInputPage = () => {
     });
   };
   
-  
 
+  useEffect(() => {
+    const savedTasks = localStorage.getItem('taskList');
+    if (savedTasks) {
+      const parsedTasks = JSON.parse(savedTasks);
+      const restoredTasks = parsedTasks.map((task: any) => ({
+        ...task,
+        startTime: task.startTime ? dayjs(task.startTime) : null,
+        endTime: task.endTime ? dayjs(task.endTime) : null,
+      }));
+      setTaskList(restoredTasks);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('taskList', JSON.stringify(taskList));
+  }, [taskList]);
+  
   const removeTask = (index: number) => {
     setTaskList(taskList.filter((_, i) => i !== index));
   };
-
+  const navigate = useNavigate();
   return (
     <div className={styles.container}>
       <h2>Task Input</h2>
@@ -126,7 +155,12 @@ const TaskInputPage = () => {
 
       </table>
 
-      <button className={styles.generateButton}>Go to Generated Schedule</button>
+      <button
+        className={styles.generateButton}
+        onClick={() => navigate('/schedule', { state: { tasks: taskList } })}
+      >
+        Go to Generated Schedule
+      </button>
       <DayTimeline tasks={taskList} />
     </div>
   );

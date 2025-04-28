@@ -35,7 +35,7 @@ const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
   // Memoize random colors
   const taskColors = useMemo(() => {
     return tasks.map(() => generateRandomColor());
-  }, [tasks.length, tasks]);
+  }, [tasks]);
 
   const hours = Array.from({ length: timelineEndHour - timelineStartHour }, (_, i) => timelineStartHour + i);
 
