@@ -4,6 +4,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import styles from './TaskInputPage.module.css';
+import DayTimeline from '../components/DayTimeline';
 
 interface Task {
   name: string;
@@ -126,6 +127,7 @@ const TaskInputPage = () => {
       </table>
 
       <button className={styles.generateButton}>Go to Generated Schedule</button>
+      <DayTimeline tasks={taskList} />
     </div>
   );
 };

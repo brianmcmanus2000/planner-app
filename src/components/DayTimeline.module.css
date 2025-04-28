@@ -1,0 +1,46 @@
+.timelineWrapper {
+    display: flex;
+    flex-direction: row;
+    margin: 2rem auto;
+    width: 320px;
+  }
+  
+  .hourLabels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 600px;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+  }
+  
+  .hourLabel {
+    height: calc(600px / 16);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 0.25rem;
+  }
+  
+  .timelineContainer {
+    position: relative;
+    height: 600px;
+    width: 200px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    overflow: hidden;
+  }
+  
+  .taskBlock {
+    position: absolute;
+    right: 0;
+    margin: 0.2rem;
+    color: #333;
+    font-size: 0.7rem;
+    padding: 0.2rem;
+    border-radius: 4px;
+    box-sizing: border-box;
+    border: 1px solid #bbb;
+    overflow: hidden;
+  }
+  
