@@ -15,8 +15,8 @@ interface DayTimelineProps {
 }
 
 const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
-  const timelineStartHour = 0;
-  const timelineEndHour = 24;
+  const timelineStartHour = 0; // midnight
+  const timelineEndHour = 24;  // end of day
   const totalTimelineMinutes = (timelineEndHour - timelineStartHour) * 60;
 
   const minutesSinceStart = (time: Dayjs) => {
@@ -32,57 +32,133 @@ const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
     return `hsl(${hue}, 70%, 80%)`; // pastel colors
   };
 
-  // Memoize random colors so they don't change every re-render
+  // Memoize random colors
   const taskColors = useMemo(() => {
     return tasks.map(() => generateRandomColor());
-  }, [tasks.length]);
+  }, [tasks.length, tasks]);
 
-  const hours = Array.from({ length: timelineEndHour - timelineStartHour + 1 }, (_, i) => timelineStartHour + i);
+  const hours = Array.from({ length: timelineEndHour - timelineStartHour }, (_, i) => timelineStartHour + i);
 
   const isOverlapping = (a: Task, b: Task) => {
     if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) return false;
     return a.startTime.isBefore(b.endTime) && b.startTime.isBefore(a.endTime);
   };
 
+  // Build combined task + free blocks
+  type TimelineBlock = {
+    type: 'task' | 'free';
+    name: string;
+    startTime: Dayjs;
+    endTime: Dayjs;
+    color?: string;
+  };
+
+  const blocks: TimelineBlock[] = [];
+
+  const sortedTasks = [...tasks].filter(t => t.startTime && t.endTime).sort((a, b) =>
+    a.startTime!.isBefore(b.startTime!) ? -1 : 1
+  );
+  
+  let timelineCursor = sortedTasks.length > 0
+    ? sortedTasks[0].startTime!.startOf('day').hour(timelineStartHour).minute(0)
+    : null;
+  
+  // Go through each task
+  for (let i = 0; i < sortedTasks.length; i++) {
+    const current = sortedTasks[i];
+  
+    if (!timelineCursor) {
+      timelineCursor = current.startTime!;
+    }
+  
+    // If there is a gap between the last end and this start
+    const gapMinutes = durationMinutes(timelineCursor, current.startTime!);
+    if (gapMinutes >= 30) {
+      blocks.push({
+        type: 'free',
+        name: 'Available',
+        startTime: timelineCursor,
+        endTime: current.startTime!,
+      });
+    }
+  
+    // Insert the task block
+    blocks.push({
+      type: 'task',
+      name: current.name,
+      startTime: current.startTime!,
+      endTime: current.endTime!,
+      color: taskColors[i],
+    });
+  
+    // Move the timeline cursor to the **later** of current cursor or task's end
+    if (!timelineCursor || current.endTime!.isAfter(timelineCursor)) {
+      timelineCursor = current.endTime!;
+    }
+  }
+  
+  // Handle free time after last task
+  if (timelineCursor && timelineCursor.hour() < timelineEndHour) {
+    const timelineEnd = timelineCursor.startOf('day').hour(timelineEndHour - 1).minute(59);
+    if (timelineCursor.isBefore(timelineEnd)) {
+      blocks.push({
+        type: 'free',
+        name: 'Available',
+        startTime: timelineCursor,
+        endTime: timelineEnd,
+      });
+    }
+  }
+  
+
   return (
     <div className={styles.timelineWrapper}>
       <div className={styles.hourLabels}>
         {hours.map((hour) => (
           <div key={hour} className={styles.hourLabel}>
-            {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+            {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
           </div>
         ))}
       </div>
 
       <div className={styles.timelineContainer}>
-        {tasks.map((task, idx) => {
-          if (!task.startTime || !task.endTime) return null;
+      {blocks.map((block, idx) => {
+        const top = (minutesSinceStart(block.startTime) / totalTimelineMinutes) * 100;
+        const height = (durationMinutes(block.startTime, block.endTime) / totalTimelineMinutes) * 100;
 
-          const top = (minutesSinceStart(task.startTime) / totalTimelineMinutes) * 100;
-          const height = (durationMinutes(task.startTime, task.endTime) / totalTimelineMinutes) * 100;
-
-          // Calculate overlap shift
-          let overlapShift = 0;
-          for (let j = 0; j < idx; j++) {
-            if (isOverlapping(tasks[j], task)) {
-              overlapShift += 20; // shift 20px for each overlap
+        let overlapShift = 0;
+        if (block.type === 'task') {
+            for (let j = 0; j < idx; j++) {
+            const previous = blocks[j];
+            if (previous.type === 'task' && isOverlapping(
+                { startTime: previous.startTime, endTime: previous.endTime, name: '', location: '', priority: 0 },
+                { startTime: block.startTime, endTime: block.endTime, name: '', location: '', priority: 0 }
+            )) {
+                overlapShift += 30;
             }
-          }
+            }
+        }
 
-          return (
+        const blockDurationMinutes = durationMinutes(block.startTime, block.endTime);
+
+        return (
             <div
-              key={idx}
-              className={styles.taskBlock}
-              style={{
+            key={idx}
+            className={block.type === 'task' ? styles.taskBlock : styles.freeBlock}
+            style={{
                 top: `${top}%`,
                 height: `${height}%`,
-                left: `${overlapShift}px`,
-                backgroundColor: taskColors[idx],
-              }}
+                backgroundColor: block.type === 'task' ? block.color : '#ddd',
+                transform: block.type === 'task' ? `translateX(${overlapShift}px)` : undefined,
+            }}
             >
-              {task.name}
+            {block.type === 'task'
+                ? block.name
+                : blockDurationMinutes >= 30
+                ? block.name
+                : ''}
             </div>
-          );
+        );
         })}
       </div>
     </div>
