@@ -27,15 +27,16 @@ const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
     return end.diff(start, 'minute');
   };
 
-  const generateRandomColor = () => {
-    const hue = Math.floor(Math.random() * 360);
-    return `hsl(${hue}, 70%, 80%)`; // pastel colors
-  };
-
-  // Memoize random colors
-  const taskColors = useMemo(() => {
-    return tasks.map(() => generateRandomColor());
-  }, [tasks]);
+  function getColorFromName(name: string): string {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      // a simple but decent string hash
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      hash = hash & hash; // keep it a 32-bit int
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 70%, 80%)`;
+  }
 
   const hours = Array.from({ length: timelineEndHour - timelineStartHour }, (_, i) => timelineStartHour + i);
 
@@ -88,7 +89,6 @@ const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
       name: current.name,
       startTime: current.startTime!,
       endTime: current.endTime!,
-      color: taskColors[i],
     });
   
     // Move the timeline cursor to the **later** of current cursor or task's end
@@ -148,7 +148,10 @@ const DayTimeline: React.FC<DayTimelineProps> = ({ tasks }) => {
             style={{
                 top: `${top}%`,
                 height: `${height}%`,
-                backgroundColor: block.type === 'task' ? block.color : '#ddd',
+                backgroundColor:
+                block.type === 'task'
+                  ? getColorFromName(block.name)
+                  : '#ddd',
                 transform: block.type === 'task' ? `translateX(${overlapShift}px)` : undefined,
             }}
             >

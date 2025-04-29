@@ -1,12 +1,10 @@
 // src/pages/SchedulePage.tsx
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import styles from './SchedulePage.module.css';
-import { rehydrateTasks, RawTask, Task } from '../utils/rehydrateTasks';
 import DayTimeline from '../components/DayTimeline';
-
-// import our solver types & fn
+import { rehydrateTasks, RawTask, Task } from '../utils/rehydrateTasks';
 import {
   FreeBlock,
   LongTermTask,
@@ -14,133 +12,202 @@ import {
   Assignment,
 } from '../utils/bruteForceScheduler';
 
+// Mirror your categories shape
+interface Category {
+  name: string;
+  priority: number;
+  defaultDuration: number;
+}
+
+const CATEGORIES_KEY = 'categories';
+
 const SchedulePage: React.FC = () => {
   const navigate = useNavigate();
 
-  // 1) load & rehydrate your “fixed” tasks from localStorage
-  const saved = localStorage.getItem('taskList');
-  const raw: RawTask[] = saved ? JSON.parse(saved) : [];
-  const tasks: Task[] = rehydrateTasks(raw);
+  //
+  // 1) Load fixed tasks from localStorage
+  //
+  const savedTasks = localStorage.getItem('taskList');
+  const raw: RawTask[] = savedTasks ? JSON.parse(savedTasks) : [];
+  const fixedTasks: Task[] = rehydrateTasks(raw);
 
-  // 2) build free time blocks exactly as in DayTimeline logic
-// right after rehydrating `tasks`
-const timelineStart = dayjs().startOf('day');
-const timelineEnd   = timelineStart.add(24, 'hour');
+  //
+  // 2) Load categories → build initial long-term tasks
+  //
+  const savedCats = localStorage.getItem(CATEGORIES_KEY);
+  const categories: Category[] = savedCats
+    ? (JSON.parse(savedCats) as Category[])
+    : [];
 
-// sort only the fixed tasks
-const fixed = tasks
-  .filter(t => t.startTime && t.endTime)
-  .sort((a, b) => a.startTime!.isBefore(b.startTime!) ? -1 : 1);
+  // State for long-term tasks (with override)
+  const [longTermTasks, setLongTermTasks] = useState<LongTermTask[]>(() =>
+    categories.map((c) => ({
+      name: c.name,
+      duration: c.defaultDuration,
+      priority: c.priority,
+    }))
+  );
 
-// now walk them to carve out free gaps
-let cursor = timelineStart;
-const freeBlocks: FreeBlock[] = [];
+  // State for solver result
+  const [scheduledLongTasks, setScheduledLongTasks] = useState<Task[]>([]);
 
-fixed.forEach((t) => {
-  // if there's a gap between cursor and this task’s start...
-  if (cursor.isBefore(t.startTime!)) {
-    const gapStart = cursor;
-    const gapEnd   = t.startTime!;
-    freeBlocks.push({
-      startTime: gapStart,
-      endTime:   gapEnd,
-      capacity:  gapEnd.diff(gapStart, 'minute'),   // correct capacity
+  //
+  // 3) Build free time blocks from fixedTasks
+  //
+  const buildFreeBlocks = useCallback((): FreeBlock[] => {
+    const timelineStart = dayjs().startOf('day');
+    const timelineEnd = timelineStart.add(24, 'hour');
+
+    // Sort fixed tasks by start time
+    const fixedSorted = fixedTasks
+      .filter((t) => t.startTime && t.endTime)
+      .sort((a, b) => (a.startTime!.isBefore(b.startTime!) ? -1 : 1));
+
+    let cursor = timelineStart;
+    const gaps: FreeBlock[] = [];
+
+    fixedSorted.forEach((t) => {
+      if (cursor.isBefore(t.startTime!)) {
+        const gapStart = cursor;
+        const gapEnd = t.startTime!;
+        gaps.push({
+          startTime: gapStart,
+          endTime: gapEnd,
+          capacity: gapEnd.diff(gapStart, 'minute'),
+        });
+      }
+      if (t.endTime!.isAfter(cursor)) {
+        cursor = t.endTime!;
+      }
     });
-  }
-  // move cursor to the later of itself or this task's end
-  if (t.endTime!.isAfter(cursor)) {
-    cursor = t.endTime!;
-  }
-});
 
-// finally, gap after the last fixed task until midnight
-if (cursor.isBefore(timelineEnd)) {
-  freeBlocks.push({
-    startTime: cursor,
-    endTime:   timelineEnd,
-    capacity:  timelineEnd.diff(cursor, 'minute'),
-  });
-}
-
-
-  // 3) define your “long-term” tasks (replace these with your real list later)
-  const longTermTasks: LongTermTask[] = [
-    { name: 'Read Chapter', duration: 45, priority: 8 },
-    { name: 'Exercise',     duration: 30, priority: 6 },
-    { name: 'Practice Coding', duration: 60, priority: 9 },
-  ];
-
-  // 4) run the brute-force solver
-  const assignment: Assignment = bruteForceScheduler(freeBlocks, longTermTasks);
-
-  // 5) build new scheduled items out of the picks
-  interface ScheduledTask extends Task {}
-  const scheduledLongTasks: ScheduledTask[] = [];
-
-  // group picks by block, then offset within each block
-  freeBlocks.forEach((block, bIdx) => {
-    const picksInBlock = assignment.picks.filter(p => p.blockIndex === bIdx);
-    let offset = 0;
-    picksInBlock.forEach(({ itemIndex }) => {
-      const item = longTermTasks[itemIndex];
-      const start = block.startTime.add(offset, 'minute');
-      const end   = start.add(item.duration, 'minute');
-      scheduledLongTasks.push({
-        name: item.name,
-        startTime: start,
-        endTime:   end,
-        location:  '',
-        priority:  item.priority,
+    if (cursor.isBefore(timelineEnd)) {
+      gaps.push({
+        startTime: cursor,
+        endTime: timelineEnd,
+        capacity: timelineEnd.diff(cursor, 'minute'),
       });
-      offset += item.duration;
-    });
-  });
+    }
 
-  // 6) combine fixed tasks + scheduled long term tasks for the timeline
-  const allScheduled = [...tasks, ...scheduledLongTasks];
+    return gaps;
+  }, [fixedTasks]);
+
+  //
+  // 4) Recalculate schedule
+  //
+  const recalcSchedule = useCallback(() => {
+    const freeBlocks = buildFreeBlocks();
+    const assignment: Assignment = bruteForceScheduler(
+      freeBlocks,
+      longTermTasks
+    );
+
+    // Build Task objects for each pick
+    const scheduled: Task[] = [];
+    freeBlocks.forEach((block, bIdx) => {
+      let offset = 0;
+      assignment.picks
+        .filter((p) => p.blockIndex === bIdx)
+        .forEach(({ itemIndex }) => {
+          const item = longTermTasks[itemIndex];
+          const start = block.startTime.add(offset, 'minute');
+          const end = start.add(item.duration, 'minute');
+          scheduled.push({
+            name: item.name,
+            startTime: start,
+            endTime: end,
+            location: '',
+            priority: item.priority,
+          });
+          offset += item.duration;
+        });
+    });
+
+    setScheduledLongTasks(scheduled);
+  }, [buildFreeBlocks, longTermTasks]);
+
+  // Initial run
+  useEffect(() => {
+    recalcSchedule();
+  }, [recalcSchedule]);
+
+  //
+  // 5) Handlers: override & remove long-term tasks
+  //
+  const updateDuration = (idx: number, newDur: number) => {
+    setLongTermTasks((lts) =>
+      lts.map((lt, i) => (i === idx ? { ...lt, duration: newDur } : lt))
+    );
+  };
+
+  const removeLongTerm = (idx: number) => {
+    setLongTermTasks((lts) => lts.filter((_, i) => i !== idx));
+  };
 
   return (
     <div className={styles.container}>
       <h2>Generated Schedule</h2>
 
-      {allScheduled.length === 0 ? (
-        <p>No tasks to show.</p>
+      {fixedTasks.length === 0 && longTermTasks.length === 0 ? (
+        <p>No tasks or categories found. Please go back and add them first.</p>
       ) : (
         <>
-          {/* visualize the full day with both fixed and long-term blocks */}
-          <DayTimeline tasks={allScheduled} />
+          {/* 6) Combined view */}
+          <DayTimeline tasks={[...fixedTasks, ...scheduledLongTasks]} />
 
-          {/* optional table for inspection */}
-          <table className={styles.scheduleTable}>
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Start – End</th>
-                <th>Type</th>
-                <th>Priority</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...tasks, ...scheduledLongTasks].map((t, i) => (
-                <tr key={i}>
-                  <td>{t.name}</td>
-                  <td>
-                    {t.startTime?.format('hh:mm A')} – {t.endTime?.format('hh:mm A')}
-                  </td>
-                  <td>
-                    {i < tasks.length ? 'Fixed' : 'Long-term'}
-                  </td>
-                  <td>{t.priority}</td>
+          {/* 7) Controls for long-term overrides */}
+          <h3>Adjust Today’s Long-Term Tasks</h3>
+          {longTermTasks.length === 0 ? (
+            <p>All long-term tasks have been removed.</p>
+          ) : (
+            <table className={styles.overrideTable}>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Default (min)</th>
+                  <th>Today’s Duration (min)</th>
+                  <th>Priority</th>
+                  <th>Remove</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {longTermTasks.map((lt, i) => (
+                  <tr key={i}>
+                    <td>{lt.name}</td>
+                    <td>
+                      {
+                        categories.find((c) => c.name === lt.name)
+                          ?.defaultDuration
+                      }
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min={0}
+                        value={lt.duration}
+                        onChange={(e) =>
+                          updateDuration(i, parseInt(e.target.value) || 0)
+                        }
+                      />
+                    </td>
+                    <td>{lt.priority}</td>
+                    <td>
+                      <button onClick={() => removeLongTerm(i)}>❌</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* 8) Recalculate */}
+          <div className={styles.buttonGroup}>
+            <button onClick={() => navigate('/tasks')}>
+              Back to Tasks
+            </button>
+          </div>
         </>
       )}
-
-      <div className={styles.buttonGroup}>
-        <button onClick={() => navigate('/tasks')}>Back to Tasks</button>
-      </div>
     </div>
   );
 };
