@@ -173,10 +173,44 @@ const SchedulePage: React.FC = () => {
         <p>No tasks or categories found. Please go back and add them first.</p>
       ) : (
         <>
-          {/* 6) Combined view */}
-          <DayTimeline tasks={[...fixedTasks, ...scheduledLongTasks]} />
-
-          {/* 7) Controls for long-term overrides */}
+        <div className={styles.scheduleLayout}>
+          <div className={styles.timelineContainer}>
+            <DayTimeline tasks={[...fixedTasks, ...scheduledLongTasks]} />
+          </div>
+          <div className={styles.scheduleTableContainer}>
+            <table className={styles.scheduleTable}>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Start – End</th>
+                  <th>Location</th>
+                  <th>Priority</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...fixedTasks, ...scheduledLongTasks].map((t, idx) => (
+                  <tr key={idx}>
+                    <td>{t.name}</td>
+                    <td>
+                      {t.startTime?.format('hh:mm A')} – {t.endTime?.format('hh:mm A')}
+                    </td>
+                    <td>{t.location}</td>
+                    <td>
+                      {idx < fixedTasks.length
+                        ? '–'         /* user-entered / fixed tasks */
+                        : t.priority  /* long-term tasks */
+                      }
+                    </td>
+                    <td>
+                      {idx < fixedTasks.length ? 'Fixed' : 'Long-term'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
           <h3>Adjust Today’s Long-Term Tasks</h3>
           {longTermTasks.length === 0 ? (
             <p>All long-term tasks have been removed.</p>

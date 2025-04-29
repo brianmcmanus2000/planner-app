@@ -22,3 +22,22 @@
   margin-right: 1rem;
   padding: 0.5rem 1rem;
 }
+.scheduleLayout {
+  display: flex;
+  align-items: flex-start;   /* tops aligned */
+  gap: 2rem;                  /* space between chart & table */
+  margin-bottom: 2rem;        /* some breathing room before override section */
+}
+
+/* ensure timeline grows but has a reasonable minimum */
+.timelineContainer {
+  flex: 1 1 300px;
+  /* you can override height if desired, e.g.: */
+  /* min-height: 400px; */
+}
+
+/* ensure table also grows and scrolls if too wide */
+.scheduleTableContainer {
+  flex: 1 1 300px;
+  overflow-x: auto;
+}

@@ -110,15 +110,6 @@ const TaskInputPage: React.FC = () => {
           onChange={handleChange}
           placeholder="Location"
         />
-        <input
-          type="number"
-          name="priority"
-          value={task.priority}
-          min={1}
-          max={10}
-          onChange={handleChange}
-          placeholder="Priority"
-        />
         <button onClick={addTask}>Add Task</button>
       </div>
 
@@ -131,7 +122,6 @@ const TaskInputPage: React.FC = () => {
                 {t.startTime?.format('hh:mm A')} - {t.endTime?.format('hh:mm A')}
               </td>
               <td>{t.location}</td>
-              <td>{t.priority}</td>
               <td>
                 <button onClick={() => removeTask(idx)}>❌</button>
               </td>

@@ -19,9 +19,9 @@ const CategoriesPage: React.FC = () => {
     }
     // default starter list
     return [
-      { name: 'Work', priority: 10, defaultDuration: 60 },
-      { name: 'Chores', priority: 5, defaultDuration: 30 },
-      { name: 'Relaxation', priority: 3, defaultDuration: 20 },
+      { name: 'Read a book', priority: 10, defaultDuration: 60 },
+      { name: 'Workout', priority: 5, defaultDuration: 45 },
+      { name: 'Spend time with family', priority: 3, defaultDuration: 120 },
     ];
   });
 
@@ -58,7 +58,7 @@ const CategoriesPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <h2>Your Categories</h2>
+      <h2>Your Long Term Tasks</h2>
       <button onClick={addCategory} className={styles.addButton}>
         + Add Category
       </button>
