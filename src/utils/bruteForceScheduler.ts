@@ -1,46 +1,54 @@
+// src/utils/bruteForceScheduler.ts
 import { Dayjs } from 'dayjs';
 
 export interface FreeBlock {
   startTime: Dayjs;
-  endTime: Dayjs;
-  capacity: number;         // minutes
+  endTime:   Dayjs;
+  capacity:  number;   // in minutes
 }
 export interface LongTermTask {
-  name: string;
-  duration: number;         // in minutes
-  priority: number;         // the “value”
+  name:     string;
+  duration: number;    // in minutes
+  priority: number;    // “value”
 }
 export interface Assignment {
   totalValue: number;
-  picks: { itemIndex: number; blockIndex: number }[];
+  picks:      { itemIndex: number; blockIndex: number }[];
 }
 
-/**
- * Brute‐force search for best assignment of items to blocks.
- */
 export function bruteForceScheduler(
   blocks: FreeBlock[],
-  items: LongTermTask[]
+  items:  LongTermTask[]
 ): Assignment {
-  let best: Assignment = { totalValue: 0, picks: [] };
+  // We’ll track an extra field `emptyBlocks` for tie-breaking
+  type Best = Assignment & { emptyBlocks: number };
+  let best: Best = { totalValue: 0, picks: [], emptyBlocks: Infinity };
 
   function backtrack(
-    i: number,
+    i:        number,
     remaining: number[],
     totalValue: number,
-    picks: { itemIndex: number; blockIndex: number }[]
+    picks:      { itemIndex: number; blockIndex: number }[]
   ) {
-    if (i >= items.length) {
-      if (totalValue > best.totalValue) {
-        best = { totalValue, picks: [...picks] };
+    if (i === items.length) {
+      // compute how many blocks got **no** picks
+      const used = new Set(picks.map(p => p.blockIndex)).size;
+      const empties = blocks.length - used;
+
+      // update if strictly better value, or equal-value but fewer empties
+      if (
+        totalValue > best.totalValue ||
+        (totalValue === best.totalValue && empties < best.emptyBlocks)
+      ) {
+        best = { totalValue, picks: [...picks], emptyBlocks: empties };
       }
       return;
     }
 
-    // Option 1: skip item i
+    // 1) skip this item
     backtrack(i + 1, remaining, totalValue, picks);
 
-    // Option 2: try to place item i into any block
+    // 2) try placing it in each block
     for (let b = 0; b < blocks.length; b++) {
       if (remaining[b] >= items[i].duration) {
         remaining[b] -= items[i].duration;
@@ -52,6 +60,8 @@ export function bruteForceScheduler(
     }
   }
 
-  backtrack(0, blocks.map((b) => b.capacity), 0, []);
-  return best;
+  backtrack(0, blocks.map(b => b.capacity), 0, []);
+  // strip off the helper field
+  const { emptyBlocks, ...res } = best;
+  return res;
 }

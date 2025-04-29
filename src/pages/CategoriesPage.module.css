@@ -1,15 +1,57 @@
+/* src/pages/CategoriesPage.module.css */
+
 .container {
-    padding: 2rem;
-  }
-  
-  .categoryItem {
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-  }
-  
-  .priorityInput {
-    margin-left: 1rem;
-    width: 60px;
-    padding: 0.25rem;
-  }
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+h2 {
+  margin-bottom: 1rem;
+}
+
+.addButton {
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.categoryRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.nameInput {
+  flex: 2;
+  padding: 0.5rem;
+  font-size: 1rem;
+  margin-right: 1rem;
+}
+
+.inputGroup {
+  flex: 3;
+  display: flex;
+  gap: 1rem;
+}
+
+.inputGroup label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+}
+
+.inputGroup input {
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  width: 80px;
+}
+
+.removeButton {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  margin-left: 1rem;
+  cursor: pointer;
+}
