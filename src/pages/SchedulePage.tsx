@@ -1,5 +1,5 @@
 // src/pages/SchedulePage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import styles from './SchedulePage.module.css';
@@ -12,6 +12,11 @@ import {
   Assignment,
 } from '../utils/bruteForceScheduler';
 
+// We'll keep track of the last solver result
+interface SolverState {
+  assignment: Assignment;
+  freeBlocks: FreeBlock[];
+}
 // Mirror your categories shape
 interface Category {
   name: string;
@@ -24,12 +29,13 @@ const CATEGORIES_KEY = 'categories';
 const SchedulePage: React.FC = () => {
   const navigate = useNavigate();
 
-  //
-  // 1) Load fixed tasks from localStorage
-  //
-  const savedTasks = localStorage.getItem('taskList');
-  const raw: RawTask[] = savedTasks ? JSON.parse(savedTasks) : [];
-  const fixedTasks: Task[] = rehydrateTasks(raw);
+    // 1) Read once & memoize the raw JSON and fixedTasks
+    const rawJson = localStorage.getItem('taskList') ?? '[]';
+    const raw: RawTask[] = useMemo(() => JSON.parse(rawJson), [rawJson]);
+    const fixedTasks: Task[] = useMemo(
+      () => rehydrateTasks(raw),
+      [rawJson]
+    );
 
   //
   // 2) Load categories → build initial long-term tasks
@@ -47,10 +53,25 @@ const SchedulePage: React.FC = () => {
       priority: c.priority,
     }))
   );
-
+  // State to hold the most recent free-blocks & solver assignment
+  const [solverState, setSolverState] = useState<SolverState>(() => ({
+    assignment: { totalValue: 0, picks: [] },
+    freeBlocks: [],
+  }));
+     
+  // Helper to restore the defaults
+  const resetLongTerm = () => {
+    setLongTermTasks(
+      categories.map((c) => ({
+        name: c.name,
+        duration: c.defaultDuration,
+        priority: c.priority,
+      }))
+    );
+  };
+   
   // State for solver result
   const [scheduledLongTasks, setScheduledLongTasks] = useState<Task[]>([]);
-
   //
   // 3) Build free time blocks from fixedTasks
   //
@@ -90,17 +111,17 @@ const SchedulePage: React.FC = () => {
     }
 
     return gaps;
-  }, [fixedTasks]);
+  }, [rawJson]);
 
   //
   // 4) Recalculate schedule
   //
   const recalcSchedule = useCallback(() => {
     const freeBlocks = buildFreeBlocks();
-    const assignment: Assignment = bruteForceScheduler(
-      freeBlocks,
-      longTermTasks
-    );
+    const assignment = bruteForceScheduler(freeBlocks, longTermTasks);
+
+    // save for status lookups
+    setSolverState({ assignment, freeBlocks });
 
     // Build Task objects for each pick
     const scheduled: Task[] = [];
@@ -167,49 +188,72 @@ const SchedulePage: React.FC = () => {
                   <th>Default (min)</th>
                   <th>Today’s Duration (min)</th>
                   <th>Priority</th>
+                  <th>Status</th>
                   <th>Remove</th>
                 </tr>
               </thead>
               <tbody>
-                {longTermTasks.map((lt, i) => (
-                  <tr key={i}>
-                    <td>{lt.name}</td>
-                    <td>
-                      {
-                        categories.find((c) => c.name === lt.name)
-                          ?.defaultDuration
-                      }
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min={0}
-                        value={lt.duration}
-                        onChange={(e) =>
-                          updateDuration(i, parseInt(e.target.value) || 0)
-                        }
-                      />
-                    </td>
-                    <td>{lt.priority}</td>
-                    <td>
-                      <button onClick={() => removeLongTerm(i)}>❌</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                {longTermTasks.map((lt, i) => {
+                  // Was this task included?
+                  const included = solverState.assignment.picks.some(
+                    (p) => p.itemIndex === i
+                  );
+                  // If not included, decide why:
+                  let reason = '';
+                  if (!included) {
+                    // could it ever fit?
+                    const fitsSomewhere = solverState.freeBlocks.some(
+                      (b) => b.capacity >= lt.duration
+                    );
+                    reason = fitsSomewhere
+                      ? 'Lower priority'
+                      : 'Too long to fit';
+                  }                  
+                  return (
+                    <tr key={i}>
+                      <td>{lt.name}</td>
+                      <td>
+                        {categories.find((c) => c.name === lt.name)?.defaultDuration}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min={0}
+                          value={lt.duration}
+                          onChange={(e) => updateDuration(i, parseInt(e.target.value) || 0)}
+                        />
+                      </td>
+                      <td>{lt.priority}</td>
+                      <td>
+                        {included
+                          ? '✅ Included'
+                          : `❌ ${reason}`}
+                      </td>
+                      <td>
+                        <button onClick={() => removeLongTerm(i)}>❌</button>
+                      </td>
+                    </tr>
+                 );
+               })}
+             </tbody>
+           </table>
           )}
 
-          {/* 8) Recalculate */}
-          <div className={styles.buttonGroup}>
-            <button onClick={() => navigate('/tasks')}>
-              Back to Tasks
+            <div className={styles.buttonGroup}>
+            <button onClick={recalcSchedule}>
+              Recalculate Schedule
             </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-export default SchedulePage;
+            <button onClick={resetLongTerm}>
+              Reset Daily Adjustments
+            </button>
+             <button onClick={() => navigate('/tasks')}>
+               Back to Tasks
+             </button>
+           </div>
+         </>
+       )}
+     </div>
+   );
+ };
+ 
+ export default SchedulePage;
