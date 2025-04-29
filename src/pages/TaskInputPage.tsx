@@ -1,12 +1,13 @@
+// src/pages/TaskInputPage.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { Dayjs } from 'dayjs';
-import dayjs from 'dayjs'; // Add this at the top
-import { useNavigate } from 'react-router-dom';
 import styles from './TaskInputPage.module.css';
 import DayTimeline from '../components/DayTimeline';
+import { rehydrateTasks } from '../utils/rehydrateTasks';
 
 interface Task {
   name: string;
@@ -16,7 +17,9 @@ interface Task {
   priority: number;
 }
 
-const TaskInputPage = () => {
+const TaskInputPage: React.FC = () => {
+  const navigate = useNavigate();
+
   const [task, setTask] = useState<Task>({
     name: '',
     startTime: null,
@@ -24,29 +27,25 @@ const TaskInputPage = () => {
     location: '',
     priority: 1,
   });
+
   const [taskList, setTaskList] = useState<Task[]>(() => {
-    const savedTasks = localStorage.getItem('taskList');
-    if (savedTasks) {
-      const parsedTasks = JSON.parse(savedTasks);
-      return parsedTasks.map((task: any) => ({
-        ...task,
-        startTime: task.startTime ? dayjs(task.startTime) : null,
-        endTime: task.endTime ? dayjs(task.endTime) : null,
-      }));
+    const saved = localStorage.getItem('taskList');
+    if (saved) {
+      return rehydrateTasks(JSON.parse(saved));
     }
     return [];
   });
-  
+
+  useEffect(() => {
+    localStorage.setItem('taskList', JSON.stringify(taskList));
+  }, [taskList]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    const isCheckbox = e.target instanceof HTMLInputElement && e.target.type === 'checkbox';
-    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
-
     setTask({
       ...task,
-      [name]: isCheckbox ? checked : value,
-    });
+      [name]: value,
+    } as any);
   };
 
   const addTask = () => {
@@ -66,68 +65,51 @@ const TaskInputPage = () => {
       alert('End time must be after start time.');
       return;
     }
-  
-    const updatedList = [...taskList, task];
-  
-    // ✅ Sort tasks by startTime ascending
-    updatedList.sort((a, b) => {
-      if (a.startTime && b.startTime) {
-        return a.startTime.isBefore(b.startTime) ? -1 : 1;
-      }
-      return 0;
-    });
-  
+
+    const updatedList = [...taskList, task].sort((a, b) =>
+      a.startTime!.isBefore(b.startTime!) ? -1 : 1
+    );
+
     setTaskList(updatedList);
-  
-    setTask({
-      name: '',
-      startTime: null,
-      endTime: null,
-      location: '',
-      priority: 1,
-    });
+    setTask({ name: '', startTime: null, endTime: null, location: '', priority: 1 });
   };
-  
 
-  useEffect(() => {
-    const savedTasks = localStorage.getItem('taskList');
-    if (savedTasks) {
-      const parsedTasks = JSON.parse(savedTasks);
-      const restoredTasks = parsedTasks.map((task: any) => ({
-        ...task,
-        startTime: task.startTime ? dayjs(task.startTime) : null,
-        endTime: task.endTime ? dayjs(task.endTime) : null,
-      }));
-      setTaskList(restoredTasks);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('taskList', JSON.stringify(taskList));
-  }, [taskList]);
-  
   const removeTask = (index: number) => {
     setTaskList(taskList.filter((_, i) => i !== index));
   };
-  const navigate = useNavigate();
+
+  const goToSchedule = () => {
+    navigate('/schedule', { state: { tasks: taskList } });
+  };
+
   return (
     <div className={styles.container}>
       <h2>Task Input</h2>
       <div className={styles.inputGroup}>
-        <input name="name" value={task.name} onChange={handleChange} placeholder="Task Name" />
+        <input
+          name="name"
+          value={task.name}
+          onChange={handleChange}
+          placeholder="Task Name"
+        />
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <TimePicker
             label="Start Time"
             value={task.startTime}
-            onChange={(newValue) => setTask({ ...task, startTime: newValue })}
+            onChange={(newValue) => setTask({ ...task, startTime: newValue! })}
           />
           <TimePicker
             label="End Time"
             value={task.endTime}
-            onChange={(newValue) => setTask({ ...task, endTime: newValue })}
+            onChange={(newValue) => setTask({ ...task, endTime: newValue! })}
           />
         </LocalizationProvider>
-        <input name="location" value={task.location} onChange={handleChange} placeholder="Location" />
+        <input
+          name="location"
+          value={task.location}
+          onChange={handleChange}
+          placeholder="Location"
+        />
         <input
           type="number"
           name="priority"
@@ -145,20 +127,20 @@ const TaskInputPage = () => {
           {taskList.map((t, idx) => (
             <tr key={idx}>
               <td>{t.name}</td>
-              <td>{t.startTime ? t.startTime.format('hh:mm A') : ''} - {t.endTime ? t.endTime.format('hh:mm A') : ''}</td> 
+              <td>
+                {t.startTime?.format('hh:mm A')} - {t.endTime?.format('hh:mm A')}
+              </td>
               <td>{t.location}</td>
               <td>{t.priority}</td>
-              <td><button onClick={() => removeTask(idx)}>❌</button></td>
+              <td>
+                <button onClick={() => removeTask(idx)}>❌</button>
+              </td>
             </tr>
           ))}
         </tbody>
-
       </table>
 
-      <button
-        className={styles.generateButton}
-        onClick={() => navigate('/schedule', { state: { tasks: taskList } })}
-      >
+      <button className={styles.generateButton} onClick={goToSchedule}>
         Go to Generated Schedule
       </button>
       <DayTimeline tasks={taskList} />
