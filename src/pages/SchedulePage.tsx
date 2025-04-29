@@ -1,7 +1,7 @@
 // src/pages/SchedulePage.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import styles from './SchedulePage.module.css';
 import DayTimeline from '../components/DayTimeline';
 import { rehydrateTasks, RawTask, Task } from '../utils/rehydrateTasks';
@@ -34,7 +34,7 @@ const SchedulePage: React.FC = () => {
     const raw: RawTask[] = useMemo(() => JSON.parse(rawJson), [rawJson]);
     const fixedTasks: Task[] = useMemo(
       () => rehydrateTasks(raw),
-      [rawJson]
+      [raw]
     );
 
   //
@@ -111,7 +111,7 @@ const SchedulePage: React.FC = () => {
     }
 
     return gaps;
-  }, [rawJson]);
+  }, [fixedTasks]);
 
   //
   // 4) Recalculate schedule
